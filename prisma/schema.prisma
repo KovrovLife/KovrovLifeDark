@@ -1,0 +1,228 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               String            @id @default(cuid())
+  email            String            @unique
+  username         String            @unique
+  name             String
+  bio              String?
+  city             String?
+  avatarUrl        String?
+  coverUrl         String?
+  passwordHash     String
+  createdAt        DateTime          @default(now())
+
+  posts            Post[]
+  likes            Like[]
+  comments         Comment[]
+
+  photos           Photo[]
+  photoComments    PhotoComment[]
+  photoReactions   PhotoReaction[]
+
+  stories          Story[]
+  reels            Reel[]
+  reelLikes        ReelLike[]
+  tracks           Track[]
+
+  ownedCommunities Community[]       @relation("communityOwner")
+  memberships      CommunityMember[]
+
+  sentRequests     Friendship[]      @relation("requester")
+  receivedRequests Friendship[]      @relation("addressee")
+
+  sentMessages     Message[]         @relation("sender")
+  receivedMessages Message[]         @relation("receiver")
+}
+
+model Community {
+  id          String            @id @default(cuid())
+  name        String
+  slug        String            @unique
+  description String?
+  avatarUrl   String?
+  coverUrl    String?
+  createdAt   DateTime          @default(now())
+
+  ownerId     String
+  owner       User              @relation("communityOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  members     CommunityMember[]
+  posts       Post[]
+}
+
+model CommunityMember {
+  id          String    @id @default(cuid())
+  createdAt   DateTime  @default(now())
+
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  communityId String
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, communityId])
+}
+
+model Post {
+  id          String     @id @default(cuid())
+  content     String
+  imageUrl    String?
+  createdAt   DateTime   @default(now())
+
+  authorId    String
+  author      User       @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  communityId String?
+  community   Community? @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  likes       Like[]
+  comments    Comment[]
+}
+
+model Like {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  text      String
+  createdAt DateTime @default(now())
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+}
+
+model Photo {
+  id        String          @id @default(cuid())
+  imageUrl  String
+  caption   String?
+  createdAt DateTime        @default(now())
+
+  ownerId   String
+  owner     User            @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  comments  PhotoComment[]
+  reactions PhotoReaction[]
+}
+
+model PhotoComment {
+  id        String   @id @default(cuid())
+  text      String
+  createdAt DateTime @default(now())
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  photoId   String
+  photo     Photo    @relation(fields: [photoId], references: [id], onDelete: Cascade)
+}
+
+model PhotoReaction {
+  id        String   @id @default(cuid())
+  type      String
+  createdAt DateTime @default(now())
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  photoId   String
+  photo     Photo    @relation(fields: [photoId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, photoId])
+}
+
+model Story {
+  id        String   @id @default(cuid())
+  imageUrl  String
+  caption   String?
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+}
+
+model Reel {
+  id          String     @id @default(cuid())
+  videoUrl    String
+  description String?
+  createdAt   DateTime   @default(now())
+
+  authorId    String
+  author      User       @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  likes       ReelLike[]
+}
+
+model ReelLike {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  reelId    String
+  reel      Reel     @relation(fields: [reelId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, reelId])
+}
+
+model Track {
+  id         String   @id @default(cuid())
+  title      String
+  artist     String
+  audioUrl   String
+  createdAt  DateTime @default(now())
+
+  uploaderId String
+  uploader   User     @relation(fields: [uploaderId], references: [id], onDelete: Cascade)
+}
+
+model Friendship {
+  id          String   @id @default(cuid())
+  status      String   @default("PENDING")
+  createdAt   DateTime @default(now())
+
+  requesterId String
+  requester   User     @relation("requester", fields: [requesterId], references: [id], onDelete: Cascade)
+
+  addresseeId String
+  addressee   User     @relation("addressee", fields: [addresseeId], references: [id], onDelete: Cascade)
+
+  @@unique([requesterId, addresseeId])
+}
+
+model Message {
+  id         String   @id @default(cuid())
+  text       String?
+  audioUrl   String?
+  videoUrl   String?
+  isRead     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  senderId   String
+  sender     User     @relation("sender", fields: [senderId], references: [id], onDelete: Cascade)
+
+  receiverId String
+  receiver   User     @relation("receiver", fields: [receiverId], references: [id], onDelete: Cascade)
+}
